@@ -61,7 +61,6 @@ extern "C" {
     return new ManagedSocket(s);
   }
   
-  
   void* Platform_Channel_Connect(const char* name) {
      struct sockaddr_un u;
     u.sun_family = AF_UNIX;
