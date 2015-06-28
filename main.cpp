@@ -15,7 +15,7 @@ public:
   unsigned char* buffer;
   size_t len;
   BStream(void* buffer, size_t len) {
-    this->buffer = buffer;
+    this->buffer = (unsigned char*)buffer;
     this->len = len;
   }
   void Read(void* output, size_t len) {
@@ -66,14 +66,6 @@ public:
     functor();
   }
 };
-static char* READ_STRING(SafeBuffer& buffy) {
-  char* retval = (char*)buffy.ptr;
-  char mander = 1;
-  while(mander != 0) {
-    buffy.Read(mander);
-  }
-  return retval;
-}
 typedef struct {
   void* channel;
   uint32_t callback_channel;
@@ -90,7 +82,16 @@ static void gg_recv(void* thisptr, unsigned char* src, int32_t srcPort, unsigned
   unsigned char* response = new unsigned char[4+4+sz];
   memcpy(response,&mapping->callback_channel,4);
   memcpy(response+4,&srcPort,4);
+  //TODO: Decrypt data
+  unsigned char key[32];
+  if(GGDNS_Symkey(src,key) && sz % 16 == 0) {
+    for(size_t i = 16;i<sz;i+=16) {
+      AES_Decrypt(key,data+i);
+      XorBlock((uint64_t*)(data+i),(uint64_t*)(data+i-16));
+    }
+  }
   memcpy(response+4+4,data,sz);
+  Platform_Channel_Transmit(mapping->channel,response,4+4+sz);
   delete[] response;
 }
 static void server_receivemsg(void* thisptr, void* channel, void* _data, size_t len) {
@@ -135,10 +136,10 @@ static void server_receivemsg(void* thisptr, void* channel, void* _data, size_t 
 	 //Encrypt
 	 AES_Encrypt(key,data);
 	 for(size_t i = 16;i<len;i+=16) {
-	   XorBlock(data+i,data+i-16);
+	   XorBlock((uint64_t*)(data+i),(uint64_t*)(data+i-16));
 	   AES_Encrypt(key,data+i);
 	 }
-	 GlobalGrid_Send(mngr->nativePtr,dest,callback_channel,port,data,len);
+	 GlobalGrid_Send(mngr->nativePtr,gaddr,callback_channel,port,data,len);
 	  
 	 *(response+4) = 1;
        }else {
@@ -181,7 +182,7 @@ int main(int argc, char** argv) {
       std::shared_ptr<P2PConnectionManager> mngr = std::make_shared<P2PConnectionManager>();
       InternetProtocol ip(3701,mngr);
       mngr->RegisterProtocol(&ip);
-      dns = GGDNS_Init(mngr->nativePtr);
+      GGDNS_Init(mngr->nativePtr);
       ::mngr = mngr;
       internet = argv[2];
       //Angels and Daemons!
