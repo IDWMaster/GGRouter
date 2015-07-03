@@ -51,8 +51,8 @@ public:
 static void* dns;
 
 static std::shared_ptr<P2PConnectionManager> mngr;
-char* internet;
-char* auth;
+static char* internet;
+static char* auth;
 static void client_receivemsg(void* thisptr, void* data, size_t len) {
   
 }
@@ -70,6 +70,10 @@ typedef struct {
   void* channel;
   uint32_t callback_channel;
 } GLOBALGRID_PORT_MAPPING;
+
+//TODO: NOTE To make encryption more secure, applications should use a counter variable that is added to the packet
+//and incremented each time a packet is sent. This will add more entropy to the data stream and make it less
+//vulnerable to cryptoanalysis attacks.
 static inline void XorBlock(uint64_t* current, const uint64_t* prev) {
   current[0] ^=prev[0];
   current[1] ^=prev[1]; 
@@ -160,6 +164,69 @@ static void server_receivemsg(void* thisptr, void* channel, void* _data, size_t 
        cb.onDestroyed = gg_port_destroy;
        GlobalGrid_OpenPort(mngr->nativePtr,portno,cb);
        break;
+     case 3:
+       //Request domain name
+     {
+       void* a;
+       void(*b)(void*,unsigned char*,size_t);
+       a = C([&](unsigned char* data, size_t len){
+	 unsigned char* buffy = new unsigned char[4+len];
+	 memcpy(buffy,&callback_channel,4);
+	 memcpy(buffy+4,data,len);
+	 Platform_Channel_Transmit(channel,buffy,4+len);
+	 delete[] buffy;
+      },b);
+       GGDNS_MakeDomain(buffer.ReadString(),buffer.ReadString(),auth,a,b);
+       
+     }
+       break;
+     case 4:
+       //Make tez catz very happy
+       //Wez REALLY liekz Mudkipz!
+       //lolcat.
+     {
+       unsigned char mander[16];
+       uuid_generate(mander);
+       char izard[256];
+       uuid_unparse(mander,izard);
+       void* a;
+       void(*b)(void*,unsigned char*,size_t);
+       a = C([&](unsigned char* data, size_t len){
+	 unsigned char* buffy = new unsigned char[4+len];
+	 memcpy(buffy,&callback_channel,4);
+	 memcpy(buffy+4,data,len);
+	 Platform_Channel_Transmit(channel,buffy,4+len);
+	 delete[] buffy;
+      },b);
+       GGDNS_MakeDomain(izard,"",auth,a,b);
+     }
+       break;
+     case 5:
+       //Sign record and generate receipt
+     {
+       NamedObject obj;
+       obj.bloblen = buffer.len;
+       obj.blob = buffer.Increment(obj.bloblen);
+       obj.authority = auth;
+       void* a;
+       void(*b)(void*,bool);
+       a = C([&](bool ean){
+	 
+      });
+       unsigned char mander[16];
+       char izard[256];
+       uuid_generate(mander);
+       uuid_unparse(mander,izard);
+       GGDNS_MakeObject(izard,&obj,a,b);
+       size_t len = 4+strlen(izard)+1+obj.siglen;
+       unsigned char* response = new unsigned char[len];
+       memcpy(response,&callback_channel,4);
+       memcpy(response+4,izard,strlen(izard+1));
+       memcpy(response+4+strlen(izard)+1,obj.signature,obj.siglen);
+       Platform_Channel_Transmit(channel,response,len);
+       delete[] response;
+     }
+       break;
   }
 }catch(const char* er) {
  }
@@ -169,14 +236,7 @@ static void server_receivemsg(void* thisptr, void* channel, void* _data, size_t 
 
 int main(int argc, char** argv) {
 
-  
-  if(argv[1] == std::string("connect")) {
-    //Connect
-    void* connection = Platform_Channel_Connect(argv[2]);
-    Platform_Channel_Transmit(connection,(void*)"world",6);
-    sleep(-1);
-    
-  }else {
+   
     if(argv[1] == std::string("demon")) {
       
       std::shared_ptr<P2PConnectionManager> mngr = std::make_shared<P2PConnectionManager>();
@@ -191,7 +251,7 @@ int main(int argc, char** argv) {
 	Platform_Channel_ReadMsg(server,0,server_receivemsg);
       }
     }
-  }
+  
   
 return 0;
 }
