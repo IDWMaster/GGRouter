@@ -6,52 +6,13 @@
 #include "GGRouter.h"
 #include <stdio.h>
 #include <stdlib.h>
-
 using namespace GlobalGrid;
 
 
-class BStream {
-public:
-  unsigned char* buffer;
-  size_t len;
-  BStream(void* buffer, size_t len) {
-    this->buffer = (unsigned char*)buffer;
-    this->len = len;
-  }
-  void Read(void* output, size_t len) {
-    if(len>this->len) {
-      throw "sideways";
-    }
-    this->len-=len;
-    memcpy(output,buffer,len);
-    buffer+=len;
-  }
-  template<typename T>
-  T& Read(T& output) {
-    Read(&output,sizeof(output));
-    return output;
-  }
-  char* ReadString() {
-    char* retval = (char*)buffer;
-    char mander;
-    while(Read(mander) != 0) {}
-    return retval;
-  }
-  void* Increment(size_t len) {
-    if(len>this->len) {
-      throw "down";
-    }
-    void* retval = buffer;
-    this->len-=len;
-    this->buffer+=len;
-    return retval;
-  }
-};
 
 static void* dns;
 
 static std::shared_ptr<P2PConnectionManager> mngr;
-static char* internet;
 static char* auth;
 static void client_receivemsg(void* thisptr, void* data, size_t len) {
   
@@ -129,8 +90,7 @@ static void server_receivemsg(void* thisptr, void* channel, void* _data, size_t 
        char* dest = buffer.ReadString();
        uint32_t port;
        buffer.Read(port);
-       uint32_t len;
-       buffer.Read(len);
+       uint32_t len = buffer.len;
        unsigned char* data = (unsigned char*)buffer.Increment(len);
        unsigned char gaddr[16];
        unsigned char key[32];
@@ -156,13 +116,18 @@ static void server_receivemsg(void* thisptr, void* channel, void* _data, size_t 
        break;
      case 2:
        //Open port
+     {
        uint32_t portno;
        buffer.Read(portno);
        ReceiveCallback cb;
-       cb.onDestroyed = 0;
        cb.onReceived = gg_recv;
        cb.onDestroyed = gg_port_destroy;
+       GLOBALGRID_PORT_MAPPING* mapping = new GLOBALGRID_PORT_MAPPING();
+       mapping->callback_channel = callback_channel;
+       mapping->channel = channel;
+       cb.thisptr = mapping;
        GlobalGrid_OpenPort(mngr->nativePtr,portno,cb);
+     }
        break;
      case 3:
        //Request domain name
@@ -206,13 +171,13 @@ static void server_receivemsg(void* thisptr, void* channel, void* _data, size_t 
      {
        NamedObject obj;
        obj.bloblen = buffer.len;
-       obj.blob = buffer.Increment(obj.bloblen);
+       obj.blob = (unsigned char*)buffer.Increment(obj.bloblen);
        obj.authority = auth;
        void* a;
        void(*b)(void*,bool);
        a = C([&](bool ean){
 	 
-      });
+      },b);
        unsigned char mander[16];
        char izard[256];
        uuid_generate(mander);
@@ -235,21 +200,33 @@ static void server_receivemsg(void* thisptr, void* channel, void* _data, size_t 
 }
 
 int main(int argc, char** argv) {
-
+    std::shared_ptr<P2PConnectionManager> mngr = std::make_shared<P2PConnectionManager>();
+    InternetProtocol ip(3701,mngr);
+    mngr->RegisterProtocol(&ip);
+    GGDNS_Init(mngr->nativePtr);
+    ::mngr = mngr;
    
     if(argv[1] == std::string("demon")) {
       
-      std::shared_ptr<P2PConnectionManager> mngr = std::make_shared<P2PConnectionManager>();
-      InternetProtocol ip(3701,mngr);
-      mngr->RegisterProtocol(&ip);
-      GGDNS_Init(mngr->nativePtr);
-      ::mngr = mngr;
-      internet = argv[2];
+
+      auth = argv[2];
       //Angels and Daemons!
-      void* server = Platform_Open_Named_Channel(argv[2]);
+      void* server = Platform_Open_Named_Channel(argv[3]);
       while(true) {
 	Platform_Channel_ReadMsg(server,0,server_receivemsg);
       }
+    }else {
+        if(argv[1] == std::string("listID")) {
+            void* a;
+            bool(*b)(void*,const char*);
+            a = C([&](const char* m){
+                printf("%s\n",m);
+                return true;
+            },b);
+            GGDNS_EnumPrivateKeys(a,b);
+        }else {
+        printf("HELP -- Usage\ndemon authID chanID\nlistID\n");
+        }
     }
   
   
