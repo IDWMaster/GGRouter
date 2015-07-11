@@ -1,0 +1,5 @@
+add_executable(ggrouter main.cpp)
+set (EXTRA_LIBS ${EXTRA_LIBS} GlobalGrid)
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I. -std=c++11 -g")
+include_directories(${EXTRA_HEADERS} "${PROJECT_BINARY_DIR}" ".")
+target_link_libraries(ggrouter GlobalGrid uuid rt ${EXTRA_LIBS})
