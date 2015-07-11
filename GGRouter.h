@@ -112,7 +112,7 @@ namespace GGClient {
     Router router;
     uint32_t nullch;
     GlobalGridConnectionManager(const char* routerName):router(routerName) {
-      nullch = router.Bind([](void* thisptr, void* data,size_t sz){});
+      nullch = router.Bind([](BStream& str){});
     }
     void SendRaw(const void* buffer, size_t sz, const char* dest) {
       unsigned char* mander = new unsigned char[4+sz+1];
@@ -158,7 +158,7 @@ static void recvb(void* thisptr, void* packet, size_t sz) {
   //Receive packet on channel
   if(router->channelBindings.find(chen) != router->channelBindings.end()){
     auto bot = router->channelBindings[chen];
-    bot.callback(bot.thisptr,str.buffer,str.len);
+    bot.callback(bot.thisptr,str);
   }
   
 }
