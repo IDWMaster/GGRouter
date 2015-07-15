@@ -5,6 +5,9 @@
 #include <map>
 #include <memory>
 #include <OpenAuth.h>
+#include <mutex>
+#include <condition_variable>
+#include <uuid/uuid.h>
 extern "C" {
   void Platform_Free(void* obj);
   void* Platform_Open_Named_Channel(const char* name);
@@ -62,26 +65,57 @@ public:
 
 static void recvcb(void* thisptr,void* packet, size_t sz);
 namespace GGClient {
-  class AsyncChannelBinding {
+  class WaitHandle {
   public:
-    void(*callback)(void*,BStream&);
-    void* thisptr;
+    Event evt;
+    unsigned char* data;
+    size_t len;
+    std::mutex mtx;
+    void Put(unsigned char* data, size_t len) {
+      mtx.lock();
+      this->data = new unsigned char[len];
+      memcpy(this->data,data,len);
+      mtx.unlock();
+    }
+    void Fetch() {
+      mtx.lock();
+    }
+    void Unfetch() {
+      if(data) {
+	delete[] data;
+	data = 0;
+      }
+      mtx.unlock();
+    }
+    WaitHandle() {
+      data = 0;
+    }
+    void Wait() {
+      evt.wait();
+    }
+    void Signal() {
+      evt.signal();
+    }
+    ~WaitHandle() {
+      if(data) {
+	delete[] data;
+      }
+    }
   };
+  
+  
   ///Represents a connection to a router
   class Router {
   public:
     uint32_t currentChannel;
     void* channel;
-    std::map<uint32_t,AsyncChannelBinding> channelBindings;
+    std::map<uint32_t,std::shared_ptr<WaitHandle>> channelBindings;
     std::vector<uint32_t> freeChannels;
     Router(const char* name) {
       channel = Platform_Channel_Connect(name);
       currentChannel = 0;
     }
-    template<typename T>
-    uint32_t Bind(const T& functor) {
-      AsyncChannelBinding binding;
-      binding.thisptr = C(functor,binding.callback);
+    uint32_t Bind(std::shared_ptr<WaitHandle> wh) {
       uint32_t chid;
       if(!freeChannels.empty()) {
 	chid = freeChannels[freeChannels.size()-1];
@@ -90,7 +124,7 @@ namespace GGClient {
 	chid = currentChannel;
 	currentChannel++;
       }
-      channelBindings[chid] = binding;
+      channelBindings[chid] = wh;
       return chid;
     }
     void Unbind(uint32_t entry) {
@@ -106,37 +140,51 @@ namespace GGClient {
       Platform_Free(channel);
     }
   };
-  
   class GlobalGridConnectionManager {
   public:
     Router router;
-    uint32_t nullch;
     GlobalGridConnectionManager(const char* routerName):router(routerName) {
-      nullch = router.Bind([](BStream& str){});
+      
     }
-    void SendRaw(const void* buffer, size_t sz, const char* dest) {
+    bool SendRaw(const void* buffer, size_t sz, const char* dest) {
+      std::shared_ptr<WaitHandle> handle = std::make_shared<WaitHandle>();
+      uint32_t chid = router.Bind(handle);
       unsigned char* mander = new unsigned char[4+sz+1];
       unsigned char* ptr = mander;
-      memcpy(mander,&nullch,4);
+      memcpy(mander,&chid,4);
       ptr+=4;
       *ptr = 1;
       ptr++;
       memcpy(ptr,buffer,sz);
       Platform_Channel_Transmit(router.channel,mander,4+sz+1);
       delete[] mander;
+      handle->Wait();
+      router.Unbind(chid);
+      return handle->data[0];
     }
     template<typename T>
-    uint32_t CreatePortMapping(uint32_t portno, const T& functor) {
+    uint32_t RunServer(uint32_t portno,void* thisptr, void(*callback)(void*,const void*,size_t)) {
+      std::shared_ptr<WaitHandle> wh = std::make_shared<WaitHandle>();
       unsigned char mander[4+1+4];
-      uint32_t retval = router.Bind(functor);
+      uint32_t retval = router.Bind(wh);
       memcpy(mander,&retval,4);
       mander[4] = 2;
       memcpy(mander+4+1,&portno,4);
       Platform_Channel_Transmit(router.channel,mander,4+1+4);
-      return retval;
+      while(true) {
+	wh->Fetch();
+	{
+	  BStream str(wh->data,wh->len);
+	  unsigned char* guid = str.Increment(16);
+	  uint32_t portno;
+	  str.Read(portno);
+	  callback(thisptr,str.buffer,str.len);
+	}
+
+	wh->Unfetch();
+      }
     }
-    
-    void Send(const void* buffer, size_t sz,const char* dest) {
+    bool Send(const void* buffer, size_t sz,const char* dest) {
       //Pad and align
       uint32_t osz = sz;
       sz+=4;
@@ -144,8 +192,48 @@ namespace GGClient {
       unsigned char* izard = new unsigned char[fullSz];
       memcpy(izard,&osz,4);
       memcpy(izard+4,buffer,osz);
-      SendRaw(izard,fullSz,dest);
+      bool retval = SendRaw(izard,fullSz,dest);
       delete[] izard;
+      return retval;
+    }
+    //Lol. (Laugh out loud.)
+    void MakeCatz(void* thisptr,void(*callback)(void*,BStream&)) {
+      std::shared_ptr<WaitHandle> wh = std::make_shared<WaitHandle>();
+      uint32_t chan = router.Bind(wh);
+      unsigned char izard[4+1];
+      memcpy(izard,&chan,4);
+      izard[4] = 4;
+      Platform_Channel_Transmit(router.channel,izard,5);
+      wh->Wait();
+      router.Unbind(chan);
+      callback(thisptr,BStream(wh->data,wh->len));
+    }
+    void RequestDomainName(const char* name, const char* parentAuthority,void* thisptr, void(*callback)(void*,BStream&)) {
+      size_t len = 4+1+strlen(name)+1+strlen(parentAuthority)+1;
+      unsigned char* mander = new unsigned char[len];
+      std::shared_ptr<WaitHandle> wh = std::make_shared<WaitHandle>();
+      uint32_t chan = router.Bind(wh);
+      memcpy(mander,&chan,4);
+      mander[4] = 3;
+      memcpy(mander+4+1,name,strlen(name)+1);
+      memcpy(mander+4+1+strlen(name)+1,parentAuthority,strlen(parentAuthority)+1);
+      Platform_Channel_Transmit(router.channel,mander,len);
+      wh->Wait();
+      router.Unbind(chan);
+      delete[] mander;
+    }
+    void SignRecord(BStream data,void* thisptr, void(*callback)(void*,BStream&)) {
+      unsigned char* mander = new unsigned char[4+1+data.len];
+      std::shared_ptr<WaitHandle> wh = std::make_shared<WaitHandle>();
+      uint32_t chan = router.Bind(wh);
+      memcpy(mander,&chan,4);
+      mander[4] = 5;
+      memcpy(mander+4+1,data.buffer,data.len);
+      wh->Wait();
+      router.Unbind(chan);
+      BStream bs(wh->data,wh->len);
+      callback(thisptr,bs);
+      delete[] mander;
     }
   };
 
@@ -158,7 +246,7 @@ static void recvb(void* thisptr, void* packet, size_t sz) {
   //Receive packet on channel
   if(router->channelBindings.find(chen) != router->channelBindings.end()){
     auto bot = router->channelBindings[chen];
-    bot.callback(bot.thisptr,str);
+    bot->Put(str.buffer,str.len);
   }
   
 }

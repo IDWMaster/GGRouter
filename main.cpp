@@ -44,9 +44,10 @@ static void gg_port_destroy(void* thisptr) {
 }
 static void gg_recv(void* thisptr, unsigned char* src, int32_t srcPort, unsigned char* data, size_t sz) {
   GLOBALGRID_PORT_MAPPING* mapping = (GLOBALGRID_PORT_MAPPING*)thisptr;
-  unsigned char* response = new unsigned char[4+4+sz];
+  unsigned char* response = new unsigned char[4+16+4+sz];
   memcpy(response,&mapping->callback_channel,4);
-  memcpy(response+4,&srcPort,4);
+  memcpy(response+4,src,16);
+  memcpy(response+4+16,&srcPort,4);
   //TODO: Decrypt data
   unsigned char key[32];
   if(GGDNS_Symkey(src,key) && sz % 16 == 0) {
@@ -55,8 +56,8 @@ static void gg_recv(void* thisptr, unsigned char* src, int32_t srcPort, unsigned
       XorBlock((uint64_t*)(data+i),(uint64_t*)(data+i-16));
     }
   }
-  memcpy(response+4+4,data,sz);
-  Platform_Channel_Transmit(mapping->channel,response,4+4+sz);
+  memcpy(response+4+16+4,data,sz);
+  Platform_Channel_Transmit(mapping->channel,response,4+16+4+sz);
   delete[] response;
 }
 static void server_receivemsg(void* thisptr, void* channel, void* _data, size_t len) {
