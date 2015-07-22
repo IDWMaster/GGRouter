@@ -206,7 +206,8 @@ namespace GGClient {
       Platform_Channel_Transmit(router.channel,izard,5);
       wh->Wait();
       router.Unbind(chan);
-      callback(thisptr,BStream(wh->data,wh->len));
+      BStream d(wh->data,wh->len);
+      callback(thisptr,d);
     }
     void RequestDomainName(const char* name, const char* parentAuthority,void* thisptr, void(*callback)(void*,BStream&)) {
       size_t len = 4+1+strlen(name)+1+strlen(parentAuthority)+1;
