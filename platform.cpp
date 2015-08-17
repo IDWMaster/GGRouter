@@ -67,7 +67,11 @@ extern "C" {
     std::string mstr = std::string("/tmp/GlobalGrid_")+name;
     memcpy(u.sun_path,mstr.data(),mstr.size()+1);
     int q = socket(AF_UNIX,SOCK_STREAM,0);
-    connect(q,(struct sockaddr*)&u,sizeof(u));
+    int res = connect(q,(struct sockaddr*)&u,sizeof(u));
+    if(res) {
+      close(q);
+      return 0;
+    }
     return new ManagedSocket(q);
   }
   

@@ -24,6 +24,11 @@ extern "C" {
 //GlobalGrid client library
 #ifdef __cplusplus
 
+
+static void recvcb(void* thisptr,void* packet, size_t sz);
+
+
+
 class BStream {
 public:
   unsigned char* buffer;
@@ -63,7 +68,6 @@ public:
 };
 
 
-static void recvcb(void* thisptr,void* packet, size_t sz);
 namespace GGClient {
   class WaitHandle {
   public:
@@ -137,7 +141,9 @@ namespace GGClient {
       }
     }
     ~Router() {
+      if(channel) {
       Platform_Free(channel);
+      }
     }
   };
   class GlobalGridConnectionManager {
@@ -239,8 +245,12 @@ namespace GGClient {
   };
 
 
-static void recvb(void* thisptr, void* packet, size_t sz) {
-  Router* router = (Router*)thisptr;
+
+}
+
+
+static void recvcb(void* thisptr, void* packet, size_t sz) {
+  GGClient::Router* router = (GGClient::Router*)thisptr;
   BStream str(packet,sz);
   uint32_t chen;
   str.Read(chen);
@@ -252,7 +262,6 @@ static void recvb(void* thisptr, void* packet, size_t sz) {
   
 }
 
-}
 #endif
 
 #endif

@@ -200,20 +200,30 @@ static void server_receivemsg(void* thisptr, void* channel, void* _data, size_t 
       });
   
 }
-
+static std::string domain;
 int main(int argc, char** argv) {
-    std::shared_ptr<P2PConnectionManager> mngr = std::make_shared<P2PConnectionManager>();
+  printf("Starting GlobalGrid connection manager....\n");  
+  std::shared_ptr<P2PConnectionManager> mngr = std::make_shared<P2PConnectionManager>();
     InternetProtocol ip(3701,mngr);
     mngr->RegisterProtocol(&ip);
     GGDNS_Init(mngr->nativePtr);
     ::mngr = mngr;
-   
+   printf("GlobalGrid protocol active\n");
+    
+    
     if(argv[1] == std::string("demon")) {
       
 
-      auth = argv[2];
+      auth = argv[2]; //signing key
       //Angels and Daemons!
-      void* server = Platform_Open_Named_Channel(argv[3]);
+      void* server = Platform_Open_Named_Channel(argv[3]); //channel ID
+      domain = argv[4]; //local DNS name
+      std::string qres = DotQuery(domain.c_str());
+      if(qres.empty()) {
+	printf("ERROR: Unable to resolve domain authority chain.\n");
+	
+      }
+      printf("Query for domain registration returned: %s\n",qres.data());
       while(true) {
 	Platform_Channel_ReadMsg(server,0,server_receivemsg);
       }
@@ -227,7 +237,26 @@ int main(int argc, char** argv) {
             },b);
             GGDNS_EnumPrivateKeys(a,b);
         }else {
-        printf("HELP -- Usage\ndemon authID chanID\nlistID\n");
+	  if(argv[1] == std::string("makeinet")) {
+	    auth = argv[2];
+	    unsigned char mander[16];
+       uuid_generate(mander);
+       char izard[256];
+       memset(izard,0,256);
+       uuid_unparse(mander,izard);
+       void* a;
+       void(*b)(void*,unsigned char*,size_t);
+       a = C([&](unsigned char* data, size_t len){
+	 printf("Internet creation complete.\n");
+	 BStream str(data,len);
+	 str.ReadString();
+	 printf("Created internet: %s\n",str.ReadString());
+	 
+      },b);
+       printf("Making Tezh Interwebz %s\n",izard);
+       GGDNS_MakeDomain(izard,"",auth,a,b);
+	  }
+        printf("HELP -- Usage\ndemon authID chanID domname\nlistID\nmakeinet auth\n");
         }
     }
   
