@@ -246,15 +246,30 @@ int main(int argc, char** argv) {
        uuid_unparse(mander,izard);
        void* a;
        void(*b)(void*,unsigned char*,size_t);
+       unsigned char* d;
+       size_t e;
        a = C([&](unsigned char* data, size_t len){
 	 printf("Internet creation complete.\n");
 	 BStream str(data,len);
 	 str.ReadString();
 	 printf("Created internet: %s\n",str.ReadString());
-	 
+	 e = len;
+	 d = new unsigned char[len];
+	 memcpy(d,data,len);
       },b);
        printf("Making Tezh Interwebz %s\n",izard);
        GGDNS_MakeDomain(izard,"",auth,a,b);
+       NamedObject obj;
+       obj.blob = d;
+       obj.bloblen = e;
+       obj.authority = auth;
+       void(*f)(void*,bool);
+       void* g = C([&](bool s){},f);
+       GGDNS_MakeObject(izard,&obj,g,f);
+       delete[] d;
+       printf("Made Tezh Interwebz %s\n",izard);
+       
+       return 0;
 	  }
         printf("HELP -- Usage\ndemon authID chanID domname\nlistID\nmakeinet auth\n");
         }
