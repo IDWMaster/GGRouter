@@ -218,12 +218,16 @@ int main(int argc, char** argv) {
       //Angels and Daemons!
       void* server = Platform_Open_Named_Channel(argv[3]); //channel ID
       domain = argv[4]; //local DNS name
-      std::string qres = DotQuery(domain.c_str());
+      bool resolved;
+      std::string qres = DotQuery(domain.c_str(),&resolved);
       if(qres.empty()) {
-	printf("ERROR: Unable to resolve domain authority chain.\n");
+	printf("ERROR: Unable to resolve domain authority chain -- invalid Internet or malformed name. If you want to make an Internet, please run the makeinet command prior to assigning a domain name.\n");
 	
       }
       printf("Query for domain registration returned: %s\n",qres.data());
+      if(!resolved) {
+	printf("Name resolution failed. Attempting to register domain. Name resolution failed at component %s\n",qres.data());
+      }
       while(true) {
 	Platform_Channel_ReadMsg(server,0,server_receivemsg);
       }
