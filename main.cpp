@@ -222,12 +222,54 @@ int main(int argc, char** argv) {
       std::string qres = DotQuery(domain.c_str(),&resolved);
       if(qres.empty()) {
 	printf("ERROR: Unable to resolve domain authority chain -- invalid Internet or malformed name. If you want to make an Internet, please run the makeinet command prior to assigning a domain name.\n");
-	
+	printf("FATAL ERROR. HALT\n");
+	return -1;
       }
       printf("Query for domain registration returned: %s\n",qres.data());
       if(!resolved) {
-	printf("Name resolution failed. Attempting to register domain. Name resolution failed at component %s\n",qres.data());
+	printf("WARNING: Name resolution failed at component %s\n",qres.data());
+	
+	std::string subDomain = domain.substr(0,domain.find_first_of("."));
+	void(*a)(void*,unsigned char*,size_t);
+	unsigned char* domdat = 0;
+	size_t domlen = 0;
+	void* b = C([&](unsigned char* data, size_t len){
+	  if(data) {
+	    domdat = new unsigned char[len];
+	    domlen = len;
+	    memcpy(domdat,data,len);
+	  }
+	},a);
+	printf("Making domain %s with parent %s...\n",subDomain.data(),qres.data());
+	GGDNS_MakeDomain(subDomain.data(),qres.data(),auth,b,a);
+	printf("Domain created\n");
+	if(!domdat) {
+	  printf("FATAL ERROR: Domain registration failure.\n");
+	  return -2;
+	}else {
+	  NamedObject obj;
+	  obj.blob = domdat;
+	  obj.bloblen = domlen;
+	  obj.authority = auth;
+	  unsigned char guid[16];
+	  char name[256];
+	  uuid_generate(guid);
+	  uuid_unparse(guid,name);
+	  void(*c)(void*,bool);
+	  bool s;
+	  void* d = C([&](bool success){
+	    s = success;
+	  },c);
+	  GGDNS_MakeObject(name,&obj,d,c);
+	  delete[] domdat;
+	  if(!s) {
+	    printf("FATAL ERROR: Unable to sign domain. Insufficient privileges or security error.\n");
+	    return -3;
+	  }
+	  
+	}
       }
+      printf("GGRouter successfully initialized. You are now securely connected and authenticated to the GlobalGrid. GGDNS registration is in-sync and no further action is required at this point.\n");
       while(true) {
 	Platform_Channel_ReadMsg(server,0,server_receivemsg);
       }
