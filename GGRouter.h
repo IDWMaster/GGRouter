@@ -152,10 +152,25 @@ namespace GGClient {
     GlobalGridConnectionManager(const char* routerName):router(routerName) {
       
     }
-    bool SendRaw(const void* buffer, size_t sz, const char* dest) {
+    //Resolves a hostname to a 16-byte GUID
+    void GetHostnameEntry(const char* hostname, unsigned char* output) {
       std::shared_ptr<WaitHandle> handle = std::make_shared<WaitHandle>();
       uint32_t chid = router.Bind(handle);
-      unsigned char* mander = new unsigned char[4+sz+1];
+      unsigned char* request = new unsigned char[1+4+strlen(hostname)+1];
+      request[0] = 1;
+      memcpy(request+1,&chid,4);
+      memcpy(request+1+4,hostname,strlen(hostname)+1);
+      Platform_Channel_Transmit(router.channel,request,1+4+strlen(hostname)+1);
+      handle->Fetch();
+      memcpy(output,handle->data,16);
+      handle->Unfetch();
+      router.Unbind(chid);
+    }
+    //Sends a raw packet to the specified GUID
+    bool SendRaw(const void* buffer, size_t sz, unsigned char* dest) {
+      std::shared_ptr<WaitHandle> handle = std::make_shared<WaitHandle>();
+      uint32_t chid = router.Bind(handle);
+      unsigned char* mander = new unsigned char[4+16+sz];
       unsigned char* ptr = mander;
       memcpy(mander,&chid,4);
       ptr+=4;
@@ -190,7 +205,7 @@ namespace GGClient {
 	wh->Unfetch();
       }
     }
-    bool Send(const void* buffer, size_t sz,const char* dest) {
+    bool Send(const void* buffer, size_t sz,unsigned char* dest) { //TODO: Deprecated. Update to send to raw GUID.
       //Pad and align
       uint32_t osz = sz;
       sz+=4;

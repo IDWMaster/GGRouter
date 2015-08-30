@@ -49,15 +49,22 @@ static void gg_recv(void* thisptr, unsigned char* src, int32_t srcPort, unsigned
   memcpy(response,&mapping->callback_channel,4);
   memcpy(response+4,src,16);
   memcpy(response+4+16,&srcPort,4);
-  //TODO: Decrypt data
+  //TODO: Decrypt data, need to get a way to get this XOR algorithm to work in-place
+  unsigned char* plaintext = (unsigned char*)(new uint64_t[sz/8]);
+  unsigned char* ciphertext = (unsigned char*)(new uint64_t[sz/8]);
+  memcpy(ciphertext,data,sz);
+  data = ciphertext;
   unsigned char key[32];
   if(GGDNS_Symkey(src,key) && sz % 16 == 0) {
+    AES_Decrypt(key,plaintext,data);
     for(size_t i = 16;i<sz;i+=16) {
-      AES_Decrypt(key,data+i);
-      XorBlock((uint64_t*)(data+i),(uint64_t*)(data+i-16));
+      AES_Decrypt(key,plaintext+i,data+i);
+      XorBlock((uint64_t*)data,(uint64_t*)(plaintext-16));
     }
   }
-  memcpy(response+4+16+4,data,sz);
+  memcpy(response+4+16+4,plaintext,sz);
+  delete[] plaintext;
+  delete[] ciphertext;
   Platform_Channel_Transmit(mapping->channel,response,4+16+4+sz);
   delete[] response;
 }
@@ -87,33 +94,16 @@ static void server_receivemsg(void* thisptr, void* channel, void* _data, size_t 
      }
      break;
      case 1:
-       //Transmit packet (RAW) -- IMPORTANT NOTE, PACKET SIZE MUST BE DIVISIBLE BY 16 bytes
+       //Resolve DNS address (dot notation) to GUID
      {
-       char* dest = buffer.ReadString();
-       uint32_t port;
-       buffer.Read(port);
-       uint32_t len = buffer.len;
-       unsigned char* data = (unsigned char*)buffer.Increment(len);
-       unsigned char gaddr[16];
+       char* name = buffer.ReadString();
+       unsigned char guid[16];
        unsigned char key[32];
-       unsigned char* response = new unsigned char[4+1];
-       memcpy(response,&len,4);
-       if(GGDNS_ResolveHost(auth,dest,gaddr,key)) {
-	 //Encrypt
-	 AES_Encrypt(key,data);
-	 for(size_t i = 16;i<len;i+=16) {
-	   XorBlock((uint64_t*)(data+i),(uint64_t*)(data+i-16));
-	   AES_Encrypt(key,data+i);
-	 }
-	 GlobalGrid_Send(mngr->nativePtr,gaddr,callback_channel,port,data,len);
-	  
-	 *(response+4) = 1;
-       }else {
-	 //Host resolution failure
-	 *(response+4) = 0;
-       }
-       Platform_Channel_Transmit(channel,response,4+1);
-       delete[] response;
+       GGDNS_ResolveHost(auth,name,guid,key);
+       unsigned char response[4+16];
+       memcpy(response, &callback_channel,4);
+       memcpy(response+4,guid,16);
+       Platform_Channel_Transmit(channel,response,4+16);
      }
        break;
      case 2:
@@ -193,6 +183,10 @@ static void server_receivemsg(void* thisptr, void* channel, void* _data, size_t 
        Platform_Channel_Transmit(channel,response,len);
        delete[] response;
      }
+       break;
+     case 6:
+       //TRANSMIT packet
+       
        break;
   }
 }catch(const char* er) {
