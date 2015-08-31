@@ -186,7 +186,17 @@ static void server_receivemsg(void* thisptr, void* channel, void* _data, size_t 
        break;
      case 6:
        //TRANSMIT packet
-       
+       unsigned char id[16];
+       buffer.Read(id);
+       uint64_t enckey[2];
+       bool haskey = GGDNS_Symkey(id,(unsigned char*)enckey);
+       size_t sz = buffer.len;
+       unsigned char* data = (unsigned char*)buffer.Increment(buffer.len);
+       uint64_t* encdat = new uint64_t[sz/8];
+       memcpy(encdat,data,sz);
+       AES_Encrypt((unsigned char*)enckey,(unsigned char*)encdat,(unsigned char*)encdat);
+       //TODO: Complete this
+       delete[] encdat;
        break;
   }
 }catch(const char* er) {
@@ -263,6 +273,26 @@ int main(int argc, char** argv) {
 	  
 	}
       }
+      printf("Verifying host-GUID mapping....");
+      unsigned char output[16];
+      unsigned char key[32];
+      bool rval = GGDNS_ResolveHost(auth,domain.c_str(),output,key);
+      unsigned char lguid[16];
+      mngr->getID(lguid);
+      if(!rval) {
+	//Update host record
+	GGDNS_MakeHost(qres.data(),lguid,16);
+	printf("NOTICE: GGDNS host record was out-of-sync and has been updated. It may take several minutes for the changes to propogate througout the network.\n");
+	
+      }else {
+	if(memcmp(lguid,output,16)) {
+	  printf("NOTICE: Network-wide routing tables updated. Local ID has been modified, to sync with DNS record.");
+	  mngr->setID(lguid);
+	}
+      }
+      
+      
+      
       printf("GGRouter successfully initialized. You are now securely connected and authenticated to the GlobalGrid. GGDNS registration is in-sync and no further action is required at this point.\n");
       while(true) {
 	Platform_Channel_ReadMsg(server,0,server_receivemsg);
