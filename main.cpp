@@ -273,23 +273,36 @@ int main(int argc, char** argv) {
 	  
 	}
       }
-      printf("Verifying host-GUID mapping....");
+      printf("Verifying host-GUID mapping....\n");
       unsigned char output[16];
       unsigned char key[32];
-      bool rval = GGDNS_ResolveHost(auth,domain.c_str(),output,key);
+      void* d;
+      void(*c)(void*,unsigned char*,size_t);
+      bool rval = false;
+      d = C([&](unsigned char* data, size_t sz){
+	if(data && sz>=16) {
+	  rval = true;
+	memcpy(output,data,16);
+	}
+      },c);
+      GGDNS_GetGuidListForObject(qres.data(),d,c);
       unsigned char lguid[16];
+      
       mngr->getID(lguid);
       if(!rval) {
 	//Update host record
+	printf("WARNING: Out-of-sync record. Attempting to update.\n");
 	GGDNS_MakeHost(qres.data(),lguid,16);
 	printf("NOTICE: GGDNS host record was out-of-sync and has been updated. It may take several minutes for the changes to propogate througout the network.\n");
 	
       }else {
+	printf("Checking record sync\n");
 	if(memcmp(lguid,output,16)) {
-	  printf("NOTICE: Network-wide routing tables updated. Local ID has been modified, to sync with DNS record.");
+	  printf("NOTICE: Network-wide routing tables updated. Local ID has been modified, to sync with DNS record.\n");
 	  mngr->setID(lguid);
 	}
       }
+      
       
       
       
