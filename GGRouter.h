@@ -167,17 +167,23 @@ namespace GGClient {
       router.Unbind(chid);
     }
     //Sends a raw packet to the specified GUID
-    bool SendRaw(const void* buffer, size_t sz, unsigned char* dest) {
+    bool SendRaw(const void* buffer, size_t sz, unsigned char* dest, uint32_t srcPort, uint32_t destPort) {
       std::shared_ptr<WaitHandle> handle = std::make_shared<WaitHandle>();
       uint32_t chid = router.Bind(handle);
-      unsigned char* mander = new unsigned char[4+16+sz];
+      unsigned char* mander = new unsigned char[4+16+4+4+sz];
       unsigned char* ptr = mander;
       memcpy(mander,&chid,4);
       ptr+=4;
-      *ptr = 1;
+      *ptr = 6;
       ptr++;
+      memcpy(ptr,dest,16);
+      ptr+=16;
+      memcpy(ptr,&srcPort,4);
+      ptr+=4;
+      memcpy(ptr,&destPort,4);
+      ptr+=4;
       memcpy(ptr,buffer,sz);
-      Platform_Channel_Transmit(router.channel,mander,4+sz+1);
+      Platform_Channel_Transmit(router.channel,mander,4+16+4+4+sz);
       delete[] mander;
       handle->Wait();
       router.Unbind(chid);
@@ -205,7 +211,7 @@ namespace GGClient {
 	wh->Unfetch();
       }
     }
-    bool Send(const void* buffer, size_t sz,unsigned char* dest) { //TODO: Deprecated. Update to send to raw GUID.
+    bool Send(const void* buffer, size_t sz,unsigned char* dest, uint32_t srcPort, uint32_t destPort) {
       //Pad and align
       uint32_t osz = sz;
       sz+=4;
@@ -213,7 +219,7 @@ namespace GGClient {
       unsigned char* izard = new unsigned char[fullSz];
       memcpy(izard,&osz,4);
       memcpy(izard+4,buffer,osz);
-      bool retval = SendRaw(izard,fullSz,dest);
+      bool retval = SendRaw(izard,fullSz,dest,srcPort,destPort);
       delete[] izard;
       return retval;
     }

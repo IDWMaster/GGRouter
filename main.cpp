@@ -49,7 +49,7 @@ static void gg_recv(void* thisptr, unsigned char* src, int32_t srcPort, unsigned
   memcpy(response,&mapping->callback_channel,4);
   memcpy(response+4,src,16);
   memcpy(response+4+16,&srcPort,4);
-  //TODO: Decrypt data, need to get a way to get this XOR algorithm to work in-place
+  //TODO: Decrypt data, need to get a way to get this XOR algorithm to work in-place (or not, this may not be possible; so for now we'll copy it a bunch of times, note this is not designed to protect against kernel memory leaks)
   unsigned char* plaintext = (unsigned char*)(new uint64_t[sz/8]);
   unsigned char* ciphertext = (unsigned char*)(new uint64_t[sz/8]);
   memcpy(ciphertext,data,sz);
@@ -188,6 +188,10 @@ static void server_receivemsg(void* thisptr, void* channel, void* _data, size_t 
        //TRANSMIT packet
        unsigned char id[16];
        buffer.Read(id);
+       uint32_t srcport;
+       uint32_t destport;
+       buffer.Read(srcport);
+       buffer.Read(destport);
        uint64_t enckey[2];
        bool haskey = GGDNS_Symkey(id,(unsigned char*)enckey);
        size_t sz = buffer.len;
@@ -195,7 +199,12 @@ static void server_receivemsg(void* thisptr, void* channel, void* _data, size_t 
        uint64_t* encdat = new uint64_t[sz/8];
        memcpy(encdat,data,sz);
        AES_Encrypt((unsigned char*)enckey,(unsigned char*)encdat,(unsigned char*)encdat);
-       //TODO: Complete this
+       size_t lsize = sz/8;
+       for(size_t i = 2;i<lsize;i+=2) {
+	 XorBlock(encdat+i,encdat+i-1); //XOR with previous ciphertext
+	 AES_Encrypt((unsigned char*)enckey,(unsigned char*)(encdat+i),(unsigned char*)(encdat+i)); //Encrypt
+       }
+       GlobalGrid_Send(mngr->nativePtr,id,srcport,destport,data,sz);
        delete[] encdat;
        break;
   }
