@@ -1,0 +1,2 @@
+* Domain registration now fails AFTER I added the authoritative check logic (OpenNet_Retrieve in main.cpp of the router)
+
