@@ -235,7 +235,7 @@ int main(int argc, char** argv) {
       std::string qres = DotQuery(domain.c_str(),&resolved);
       if(qres.empty()) {
 	printf("ERROR: Unable to resolve domain authority chain -- invalid Internet or malformed name. If you want to make an Internet, please run the makeinet command prior to assigning a domain name.\n");
-	printf("FATAL ERROR. HALT\n");
+	printf("FATAL ERROR. HALT (with segfault)\n");
 	return -1;
       }
       printf("Query for domain registration returned: %s\n",qres.data());
