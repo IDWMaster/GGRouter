@@ -6,6 +6,7 @@
 #include "GGRouter.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <fcntl.h>
 #include "sqlite3.h"
 using namespace GlobalGrid;
 
@@ -276,7 +277,10 @@ int main(int argc, char** argv) {
 	  GGDNS_MakeObject(name,&obj,d,c);
 	  delete[] domdat;
 	  if(!s) {
-	    printf("FATAL ERROR: Unable to sign domain. Insufficient privileges or security error.\n");
+	    int fd = open("request.dat",O_RDWR | O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO);
+	    write(fd,domdat,domlen);
+	    close(fd);
+	    printf("FATAL ERROR: Unable to sign domain. You don't have authority over the parent domain. A domain registration request has been created, and stored in the file called request.dat. Please submit this file to the authority for the parent domain, and request that it be signed.\n");
 	    return -3;
 	  }
 	  
