@@ -264,7 +264,11 @@ int main(int argc, char** argv) {
 	  NamedObject obj;
 	  obj.blob = domdat;
 	  obj.bloblen = domlen;
-	  obj.authority = auth;
+	  void(*f)(void*,NamedObject*);
+	  void* g = C([&](NamedObject* robj){
+	    obj.authority = robj->authority;
+	  },f);
+	  OpenNet_Retrieve(GGDNS_db(),qres.data(),g,f);
 	  unsigned char guid[16];
 	  char name[256];
 	  uuid_generate(guid);
