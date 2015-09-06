@@ -266,7 +266,14 @@ int main(int argc, char** argv) {
 	  obj.bloblen = domlen;
 	  void(*f)(void*,NamedObject*);
 	  void* g = C([&](NamedObject* robj){
+	    if(robj == 0) {
+	      //TODO: Fix this; something goofy goes on during domain registration
+	      printf("TODO: Bug found\n");
+	    abort();
+	      
+	    }
 	    obj.authority = robj->authority;
+	    
 	  },f);
 	  OpenNet_Retrieve(GGDNS_db(),qres.data(),g,f);
 	  unsigned char guid[16];
