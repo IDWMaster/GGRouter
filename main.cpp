@@ -282,12 +282,8 @@ int main(int argc, char** argv) {
 	  char name[256];
 	  uuid_generate(guid);
 	  uuid_unparse(guid,name);
-	  void(*c)(void*,bool);
-	  bool s;
-	  void* d = C([&](bool success){
-	    s = success;
-	  },c);
-	  GGDNS_MakeObject(name,&obj,d,c);
+	  bool s = OpenNet_HasPrivateKey(GGDNS_db(),obj.authority);
+	  GGDNS_MakeObject(name,&obj,0,0);
 	  delete[] domdat;
 	  if(!s) {
 	    int fd = open("request.dat",O_RDWR | O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO);
