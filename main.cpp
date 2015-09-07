@@ -284,6 +284,7 @@ int main(int argc, char** argv) {
 	  uuid_unparse(guid,name);
 	  bool s = OpenNet_HasPrivateKey(GGDNS_db(),obj.authority);
 	  GGDNS_MakeObject(name,&obj,0,0);
+	  qres = name;
 	  delete[] domdat;
 	  if(!s) {
 	    int fd = open("request.dat",O_RDWR | O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO);
@@ -295,6 +296,7 @@ int main(int argc, char** argv) {
 	  
 	}
       }
+      
       printf("Verifying host-GUID mapping....\n");
       unsigned char output[16];
       unsigned char key[32];
@@ -311,6 +313,22 @@ int main(int argc, char** argv) {
       unsigned char lguid[16];
       
       mngr->getID(lguid);
+      
+      
+      
+      char authkey[256];
+      void(*f)(void*,NamedObject*);
+	  void* g = C([&](NamedObject* robj){
+	    memcpy(authkey,robj->authority,256);
+	  },f);
+	  OpenNet_Retrieve(GGDNS_db(),qres.data(),g,f);
+      if(!OpenNet_HasPrivateKey(GGDNS_db(),authkey)) {
+	printf("Access denied. You have no authority to bind this domain. Attempting to bind to this domain may result in your being permanently banned from the system.\n");
+	return -5;
+      }
+      
+      
+      
       if(!rval) {
 	//Update host record
 	printf("WARNING: Out-of-sync record. Attempting to update.\n");
