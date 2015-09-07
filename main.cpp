@@ -285,7 +285,6 @@ int main(int argc, char** argv) {
 	  bool s = OpenNet_HasPrivateKey(GGDNS_db(),obj.authority);
 	  GGDNS_MakeObject(name,&obj,0,0);
 	  qres = name;
-	  delete[] domdat;
 	  if(!s) {
 	    int fd = open("request.dat",O_RDWR | O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO);
 	    write(fd,domdat,domlen);
@@ -293,6 +292,8 @@ int main(int argc, char** argv) {
 	    printf("FATAL ERROR: Unable to sign domain. You don't have authority over the parent domain (only %s does). A domain registration request has been created, and stored in the file called request.dat. Please submit this file to the authority for the parent domain, and request that it be signed.\n",obj.authority);
 	    return -3;
 	  }
+	    delete[] domdat;
+	
 	  
 	}
       }
