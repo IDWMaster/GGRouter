@@ -261,9 +261,11 @@ int main(int argc, char** argv) {
 	  printf("FATAL ERROR: Domain registration failure.\n");
 	  return -2;
 	}else {
+	  char auth[256];
 	  NamedObject obj;
 	  obj.blob = domdat;
 	  obj.bloblen = domlen;
+	  obj.authority = auth;
 	  void(*f)(void*,NamedObject*);
 	  void* g = C([&](NamedObject* robj){
 	    if(robj == 0) {
@@ -272,7 +274,7 @@ int main(int argc, char** argv) {
 	    abort();
 	      
 	    }
-	    obj.authority = robj->authority;
+	    memcpy(obj.authority,robj->authority,strlen(robj->authority)+1);
 	    
 	  },f);
 	  OpenNet_Retrieve(GGDNS_db(),qres.data(),g,f);
@@ -291,7 +293,7 @@ int main(int argc, char** argv) {
 	    int fd = open("request.dat",O_RDWR | O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO);
 	    write(fd,domdat,domlen);
 	    close(fd);
-	    printf("FATAL ERROR: Unable to sign domain. You don't have authority over the parent domain. A domain registration request has been created, and stored in the file called request.dat. Please submit this file to the authority for the parent domain, and request that it be signed.\n");
+	    printf("FATAL ERROR: Unable to sign domain. You don't have authority over the parent domain (only %s does). A domain registration request has been created, and stored in the file called request.dat. Please submit this file to the authority for the parent domain, and request that it be signed.\n",obj.authority);
 	    return -3;
 	  }
 	  
