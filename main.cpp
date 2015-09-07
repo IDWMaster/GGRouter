@@ -214,6 +214,11 @@ static void server_receivemsg(void* thisptr, void* channel, void* _data, size_t 
       });
   
 }
+static void inserthandler(void* thisptr, NamedObject* obj,const char* name) {
+  printf("Added new object with ID %s signed by %s\n",name,obj->authority);
+}
+
+
 static std::string domain;
 int main(int argc, char** argv) {
   printf("Starting GlobalGrid connection manager....\n");  
@@ -224,7 +229,7 @@ int main(int argc, char** argv) {
     ::mngr = mngr;
    printf("GlobalGrid protocol active\n");
     
-    
+    GGDNS_SetInsertionHandler(0,inserthandler);
     if(argv[1] == std::string("demon")) {
       
 
