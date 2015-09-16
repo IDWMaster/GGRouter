@@ -322,17 +322,6 @@ int main(int argc, char** argv) {
       
       
       
-      char authkey[256];
-      void(*f)(void*,NamedObject*);
-	  void* g = C([&](NamedObject* robj){
-	    memcpy(authkey,robj->authority,strlen(robj->authority)+1);
-	  },f);
-	  OpenNet_Retrieve(GGDNS_db(),qres.data(),g,f);
-      if(!OpenNet_HasPrivateKey(GGDNS_db(),authkey)) {
-	printf("Access denied. You have no authority to bind this domain. Attempting to bind to this domain may result in your being permanently banned from the system. Missing key %s\n",authkey);
-	return -5;
-      }
-      
       
       
       if(!rval) {
