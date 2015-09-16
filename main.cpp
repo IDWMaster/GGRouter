@@ -399,8 +399,24 @@ int main(int argc, char** argv) {
        printf("Made Tezh Interwebz %s\n",izard);
        
        return 0;
+	  }else {
+	    if(argv[1] == "signrecord") {
+	      NamedObject obj;
+	      unsigned char izard[1024]; //Limit object size to 1KB
+	      int count = read(STDIN_FILENO,izard,1024);
+	      obj.authority = argv[2];
+	      obj.blob = izard;
+	      obj.bloblen = count;
+	      unsigned char id[16];
+	      uuid_generate(id);
+	      char id_str[256];
+	      memset(id_str,0,256);
+	      uuid_unparse(id,id_str);
+	      GGDNS_MakeObject(id_str,&obj,0,0);
+	      printf("Object created successfully.\n");
+	    }
 	  }
-        printf("HELP -- Usage\ndemon authID chanID domname\nlistID\nmakeinet auth\n");
+        printf("HELP -- Usage\ndemon authID chanID domname\nlistID\nmakeinet auth\nsignrecord auth -- signs a record with the specified key and adds it to GGDNS.");
         }
     }
   
