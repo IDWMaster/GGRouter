@@ -400,7 +400,7 @@ int main(int argc, char** argv) {
        
        return 0;
 	  }else {
-	    if(argv[1] == "signrecord") {
+	    if(argv[1] == std::string("signrecord")) {
 	      NamedObject obj;
 	      unsigned char izard[1024]; //Limit object size to 1KB
 	      int count = read(STDIN_FILENO,izard,1024);
@@ -414,6 +414,7 @@ int main(int argc, char** argv) {
 	      uuid_unparse(id,id_str);
 	      GGDNS_MakeObject(id_str,&obj,0,0);
 	      printf("Object created successfully.\n");
+	      return 0;
 	    }
 	  }
         printf("HELP -- Usage\ndemon authID chanID domname\nlistID\nmakeinet auth\nsignrecord auth -- signs a record with the specified key and adds it to GGDNS.\n");
