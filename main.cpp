@@ -230,6 +230,12 @@ int main(int argc, char** argv) {
    printf("GlobalGrid protocol active\n");
     
     GGDNS_SetInsertionHandler(0,inserthandler);
+    RetryOperation([](std::function<void()> cancel){
+      int scount = GGDNS_ObjectsSynchronizing();
+      if(scount) {
+	printf("Replicating %i objects.\n",scount);
+      }
+    },800,-1,[](){});
     if(argv[1] == std::string("demon")) {
       
 

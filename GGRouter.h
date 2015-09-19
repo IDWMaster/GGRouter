@@ -189,8 +189,7 @@ namespace GGClient {
       router.Unbind(chid);
       return handle->data[0];
     }
-    template<typename T>
-    uint32_t RunServer(uint32_t portno,void* thisptr, void(*callback)(void*,const void*,size_t)) {
+    uint32_t RunServer(uint32_t portno,void* thisptr, void(*callback)(void*,unsigned char*,const void*,size_t)) {
       std::shared_ptr<WaitHandle> wh = std::make_shared<WaitHandle>();
       unsigned char mander[4+1+4];
       uint32_t retval = router.Bind(wh);
@@ -202,10 +201,10 @@ namespace GGClient {
 	wh->Fetch();
 	{
 	  BStream str(wh->data,wh->len);
-	  unsigned char* guid = str.Increment(16);
+	  unsigned char* guid = (unsigned char*)str.Increment(16);
 	  uint32_t portno;
 	  str.Read(portno);
-	  callback(thisptr,str.buffer,str.len);
+	  callback(thisptr,guid,str.buffer,str.len);
 	}
 
 	wh->Unfetch();
