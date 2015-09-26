@@ -410,9 +410,14 @@ int main(int argc, char** argv) {
 	      GGDNS_MakeObject(id_str,&obj,0,0);
 	      printf("Object created successfully.\n");
 	      return 0;
+	    }else {
+	      if(argv[1] == std::string("addiproute")) {
+		
+		return 0;
+	      }
 	    }
 	  }
-        printf("HELP -- Usage\ndemon authID chanID domname\nlistID\nmakeinet auth\nsignrecord auth -- signs a record with the specified key and adds it to GGDNS.\n");
+        printf("HELP -- Usage\ndemon authID chanID domname\nlistID\nmakeinet auth\nsignrecord auth -- signs a record with the specified key and adds it to GGDNS.\naddiproute ipaddr portno -- Adds an IP route.");
         }
     }
   
