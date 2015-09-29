@@ -431,12 +431,15 @@ int main(int argc, char** argv) {
 	      return 0;
 	    }else {
 	      if(argv[1] == std::string("addiproute")) {
-		
+		in_addr_t addr = inet_addr(argv[2]);
+		int portno = atoi(argv[3]);
+		ip.AddRoute(addr,portno);
+		printf("Route added to database.\n");
 		return 0;
 	      }
 	    }
 	  }
-        printf("HELP -- Usage\ndemon authID chanID domname\nlistID\nmakeinet auth\nsignrecord auth -- signs a record with the specified key and adds it to GGDNS.\naddiproute ipaddr portno -- Adds an IP route.");
+        printf("HELP -- Usage\ndemon authID chanID domname\nlistID\nmakeinet auth\nsignrecord auth -- signs a record with the specified key and adds it to GGDNS.\naddiproute ipaddr portno -- Adds an IP route.\n");
         }
     }
   
