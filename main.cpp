@@ -236,7 +236,10 @@ static void server_receivemsg(void* thisptr, void* channel, void* _data, size_t 
 static void inserthandler(void* thisptr, NamedObject* obj,const char* name) {
   printf("Added new object with ID %s signed by %s\n",name,obj->authority);
 }
-
+static void writefile(void* thisptr, unsigned char* data, size_t len) {
+  write(STDOUT_FILENO,data,len);
+  
+}
 
 static std::string domain;
 int main(int argc, char** argv) {
@@ -320,6 +323,7 @@ int main(int argc, char** argv) {
 	    write(fd,domdat,domlen);
 	    close(fd);
 	    printf("FATAL ERROR: Unable to sign domain. You don't have authority over the parent domain (only %s does). A domain registration request has been created, and stored in the file called request.dat. Please submit this file to the authority for the parent domain, and request that it be signed.\n",obj.authority);
+	    sleep(-1);
 	    return -3;
 	  }
 	    delete[] domdat;
@@ -436,10 +440,30 @@ int main(int argc, char** argv) {
 		ip.AddRoute(addr,portno);
 		printf("Route added to database.\n");
 		return 0;
+	      }else {
+		if(argv[1] == std::string("backup")) {
+		  GGDNS_Backup(0,writefile);
+		}else {
+		  if(argv[1] == std::string("restore")) {
+		    std::vector<unsigned char> bdata;
+		    unsigned char buffy[2048];
+		    
+		    int count;
+		    while((count = read(STDIN_FILENO,buffy,2048))>0) {
+		      size_t prevsz = bdata.size();
+		      bdata.resize(bdata.size()+count);
+		      memcpy(bdata.data()+prevsz,buffy,count);
+		      
+		    }
+		    GGDNS_RestoreBackup(bdata.data(),bdata.size());
+		    
+		    
+		  }
+		}
 	      }
 	    }
 	  }
-        printf("HELP -- Usage\ndemon authID chanID domname\nlistID\nmakeinet auth\nsignrecord auth -- signs a record with the specified key and adds it to GGDNS.\naddiproute ipaddr portno -- Adds an IP route.\n");
+        printf("HELP -- Usage\ndemon authID chanID domname\nlistID\nmakeinet auth\nsignrecord auth -- signs a record with the specified key and adds it to GGDNS.\naddiproute ipaddr portno -- Adds an IP route.\nBackup -- Writes a backup of the entire database to stdout.\nRestore -- Restores a backup from stdin.");
         }
     }
   
