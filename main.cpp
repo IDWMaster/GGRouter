@@ -448,7 +448,7 @@ int main(int argc, char** argv) {
 	      if(argv[1] == std::string("addiproute")) {
 		in_addr_t addr = inet_addr(argv[2]);
 		int portno = atoi(argv[3]);
-		ip.AddRoute(addr,portno);
+		ip.AddRoute(addr,htons(portno));
 		printf("Route added to database.\n");
 		return 0;
 	      }else {
