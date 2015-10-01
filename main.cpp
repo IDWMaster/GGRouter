@@ -235,6 +235,17 @@ static void server_receivemsg(void* thisptr, void* channel, void* _data, size_t 
 }
 static void inserthandler(void* thisptr, NamedObject* obj,const char* name) {
   printf("Added new object with ID %s signed by %s\n",name,obj->authority);
+  try {
+    obj->blob+=4;
+    obj->bloblen-=4;
+    BStream str(obj->blob,obj->bloblen);
+    if(std::string(str.ReadString()) == std::string("DNS-ENC")) {
+      char* dname = str.ReadString();
+      char* parent = str.ReadString();
+      printf("DNS ENC advertisement for %s.%s (NOTE: Not yet validated; the domain may or may not actually exist)\n",dname,parent);
+    }
+  }catch(const char* mander) {
+  }
 }
 static void writefile(void* thisptr, unsigned char* data, size_t len) {
   write(STDOUT_FILENO,data,len);
@@ -316,7 +327,6 @@ int main(int argc, char** argv) {
 	  uuid_generate(guid);
 	  uuid_unparse(guid,name);
 	  bool s = OpenNet_HasPrivateKey(GGDNS_db(),obj.authority);
-	  GGDNS_MakeObject(name,&obj,0,0);
 	  qres = name;
 	  if(!s) {
 	    int fd = open("request.dat",O_RDWR | O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO);
@@ -327,7 +337,8 @@ int main(int argc, char** argv) {
 	    return -3;
 	  }
 	    delete[] domdat;
-	
+	GGDNS_MakeObject(name,&obj,0,0);
+	  
 	  
 	}
       }
@@ -443,6 +454,7 @@ int main(int argc, char** argv) {
 	      }else {
 		if(argv[1] == std::string("backup")) {
 		  GGDNS_Backup(0,writefile);
+		  abort();
 		}else {
 		  if(argv[1] == std::string("restore")) {
 		    std::vector<unsigned char> bdata;
@@ -456,7 +468,7 @@ int main(int argc, char** argv) {
 		      
 		    }
 		    GGDNS_RestoreBackup(bdata.data(),bdata.size());
-		    
+		    abort();
 		    
 		  }
 		}
