@@ -28,7 +28,7 @@
 #include <fcntl.h>
 #include "sqlite3.h"
 using namespace GlobalGrid;
-
+using namespace LightThread;
 
 
 static void* dns;
@@ -275,6 +275,8 @@ int main(int argc, char** argv) {
       auth = argv[2]; //signing key
       //Angels and Daemons!
       void* server = Platform_Open_Named_Channel(argv[3]); //channel ID
+      if(argc>=5) {
+      
       domain = argv[4]; //local DNS name
       bool resolved;
       std::string qres = DotQuery(domain.c_str(),&resolved);
@@ -380,7 +382,7 @@ int main(int argc, char** argv) {
       }
       
       
-      
+      }
       
       printf("GGRouter successfully initialized. You are now securely connected and authenticated to the GlobalGrid. GGDNS registration is in-sync and no further action is required at this point.\n");
       while(true) {

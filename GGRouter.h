@@ -89,7 +89,7 @@ public:
 namespace GGClient {
   class WaitHandle {
   public:
-    Event evt;
+    LightThread::Event evt;
     unsigned char* data;
     size_t len;
     std::mutex mtx;
