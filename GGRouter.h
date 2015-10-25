@@ -98,6 +98,7 @@ namespace GGClient {
       this->data = new unsigned char[len];
       memcpy(this->data,data,len);
       mtx.unlock();
+      Signal();
     }
     void Fetch() {
       mtx.lock();

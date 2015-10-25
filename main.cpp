@@ -227,6 +227,13 @@ static void server_receivemsg(void* thisptr, void* channel, void* _data, size_t 
        GlobalGrid_Send(mngr->nativePtr,id,srcport,destport,data,sz);
        delete[] encdat;
        break;
+     case 7:
+       //TODO: Implement client-side starting here
+       //Retrieve ID of NamedObject
+       bool found;
+      std::string DotQuery(buffer.ReadString(),&found);
+       
+       break;
   }
 }catch(const char* er) {
  }
