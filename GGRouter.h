@@ -43,6 +43,7 @@ extern "C" {
 #ifdef __cplusplus
 
 
+
 static void recvcb(void* thisptr,void* packet, size_t sz);
 
 
@@ -84,6 +85,33 @@ public:
     return retval;
   }
 };
+
+
+static void NamedObject_Serialize(const NamedObject& obj, std::vector<unsigned char>& output) {
+  size_t start = output.size();
+  output.resize(output.size()+strlen(obj.authority)+1+4+obj.bloblen+4+obj.siglen);
+  memcpy(output.data()+start,obj.authority,strlen(obj.authority)+1);
+  uint32_t len = (uint32_t)obj.bloblen;
+  memcpy(output.data()+start+strlen(obj.authority)+1,&len,4);
+  memcpy(output.data()+start+strlen(obj.authority)+1+4,obj.blob,obj.bloblen);
+  len = (uint32_t)obj.siglen;
+  memcpy(output.data()+start+strlen(obj.authority)+1+4+obj.bloblen,&len,4);
+  memcpy(output.data()+start+strlen(obj.authority)+1+4+obj.bloblen+4,obj.signature,obj.siglen);
+  
+}
+static void NamedObject_Deserialize(BStream& str, NamedObject& out) {
+  out.authority = str.ReadString();
+  uint32_t len;
+  str.Read(len);
+  out.bloblen = len;
+  out.blob = str.Increment(len);
+  str.Read(len);
+  out.siglen = len;
+  out.signature = str.Increment(len);
+  
+}
+
+
 
 
 namespace GGClient {
@@ -208,6 +236,50 @@ namespace GGClient {
       router.Unbind(chid);
       return handle->data[0];
     }
+    /**
+     * Retrieves a raw NamedObject from the GGDNS database
+     * @param name The GUID of the object
+     * @param out The output value
+     * */
+    bool GetObject(const char* name,NamedObject& out) {
+      std::shared_ptr<WaitHandle> wh = std::make_shared<WaitHandle>();
+      unsigned char* mander = new unsigned char[4+1+strlen(name)+1];
+      uint32_t handle = router.Bind(wh);
+      memcpy(mander,&handle,4);
+      mander[4] = 9;
+      memcpy(mander+4+1,name,strlen(name)+1);
+      Platform_Channel_Transmit(router.channel,mander,4+1+strlen(name)+1);
+      bool retval;
+      wh->Fetch();
+      {
+	BStream str(wh->data,wh->len);
+	str.Read(retval);
+	NamedObject_Deserialize(str,out);
+	
+      }
+      wh->Unfetch();
+      router.Unbind(handle);
+    }
+    bool UpdateObject(const char* name, const NamedObject& in) {
+      std::shared_ptr<WaitHandle> wh = std::make_shared<WaitHandle>();
+      uint32_t chen = router.Bind(wh);
+      std::vector<unsigned char> request;
+      request.resize(4+1+strlen(name)+1);
+      memcpy(request.data(),&chen,4);
+      request.data[4] = 9;
+      memcpy(request.data()+4+1,name,strlen(name)+1);
+      NamedObject_Serialize(in,request);
+      Platform_Channel_Transmit(router.channel,request.data(),request.size());
+      bool retval = false;
+      wh->Fetch();
+      {
+	BStream str(wh->data,wh->len);
+	str.Read(retval);
+      }
+      wh->Unfetch();
+      router.Unbind(wh);
+      return retval;
+    }
     uint32_t RunServer(uint32_t portno,void* thisptr, void(*callback)(void*,unsigned char*,const void*,size_t)) {
       std::shared_ptr<WaitHandle> wh = std::make_shared<WaitHandle>();
       unsigned char mander[4+1+4];
@@ -275,12 +347,15 @@ namespace GGClient {
       memcpy(mander,&chan,4);
       mander[4] = 5;
       memcpy(mander+4+1,data.buffer,data.len);
+      Platform_Channel_Transmit(router.channel,mander,4+1+data.len);
+      
       wh->Wait();
       router.Unbind(chan);
       BStream bs(wh->data,wh->len);
       callback(thisptr,bs);
       delete[] mander;
     }
+    
   };
 
 
@@ -298,6 +373,7 @@ static void recvcb(void* thisptr, void* packet, size_t sz) {
     auto bot = router->channelBindings[chen];
     bot->Put(str.buffer,str.len);
   }
+  
   
 }
 

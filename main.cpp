@@ -225,14 +225,72 @@ static void server_receivemsg(void* thisptr, void* channel, void* _data, size_t 
 	 AES_Encrypt((unsigned char*)enckey,(unsigned char*)(encdat+i),(unsigned char*)(encdat+i)); //Encrypt
        }
        GlobalGrid_Send(mngr->nativePtr,id,srcport,destport,data,sz);
+       
        delete[] encdat;
        break;
      case 7:
        //TODO: Implement client-side starting here
        //Retrieve ID of NamedObject
        bool found;
-      std::string DotQuery(buffer.ReadString(),&found);
+      std::string result =  DotQuery(buffer.ReadString(),&found);
+       unsigned char* response = new unsigned char[4+1+result.size()+1];
+       memcpy(response,&callback_channel,4);
+       response[4] = found;
+       memcpy(response+4+1,result.data(),result.size());
+       Platform_Channel_Transmit(channel,response+4+1,result.size()+1);
+       delete[] response;
+       break;
+     case 8:
+     {
+       //Read NamedObject
+       char* name = buffer.ReadString();
+       bool found;
+       NamedObject obj;
+       void* a;
+       void(*b)(void*,NamedObject*);
+       a = C([&](NamedObject* obj){
+	 found = obj;
+	 if(obj) {
+	   obj = *obj;
+	 }
+      });
+       GGDNS_RunQuery(name,a,b);
+       if(found) {
+	 std::vector<unsigned char> blob;
+	 NamedObject_Serialize(obj,blob);
+	 unsigned char* response = new unsigned char[4+1+blob.size()];
+	 memcpy(response,&callback_channel,4);
+	 response[4] = 1;
+	 memcpy(response+4+1,blob.data(),blob.size());
+	 
+	 delete[] response;
+       }else {
+	 unsigned char response[4+1];
+	 memcpy(response,&callback_channel,4);
+	 response+4 = 0;
+	 Platform_Channel_Transmit(channel,response,4+1);
+       }
+     }
+       break;
+     case 9:
+     {
+       //Create or update NamedObject
+       const char* name = buffer.ReadString();
+       NamedObject obj;
+       NamedObject_Deserialize(buffer,obj);
+       void* a;
+       void(*b)(void*,bool);
+       bool s;
+       a = C([&](bool success){
+	  s = success;
+      });
+       GGDNS_MakeObject(name,&obj,a,b);
+       unsigned char response[4+1];
+       memcpy(response,&callback_channel,4);
+       response[4] = s;
+       Platform_Channel_Transmit(channel,response,4+1);
        
+     }
        break;
   }
 }catch(const char* er) {
