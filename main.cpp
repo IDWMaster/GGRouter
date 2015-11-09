@@ -206,6 +206,7 @@ static void server_receivemsg(void* thisptr, void* channel, void* _data, size_t 
        break;
      case 6:
        //TRANSMIT packet
+     {
        unsigned char id[16];
        buffer.Read(id);
        uint32_t srcport;
@@ -227,10 +228,12 @@ static void server_receivemsg(void* thisptr, void* channel, void* _data, size_t 
        GlobalGrid_Send(mngr->nativePtr,id,srcport,destport,data,sz);
        
        delete[] encdat;
+     }
        break;
      case 7:
        //TODO: Implement client-side starting here
        //Retrieve ID of NamedObject
+     {
        bool found;
       std::string result =  DotQuery(buffer.ReadString(),&found);
        unsigned char* response = new unsigned char[4+1+result.size()+1];
@@ -239,6 +242,7 @@ static void server_receivemsg(void* thisptr, void* channel, void* _data, size_t 
        memcpy(response+4+1,result.data(),result.size());
        Platform_Channel_Transmit(channel,response+4+1,result.size()+1);
        delete[] response;
+     }
        break;
      case 8:
      {
@@ -248,12 +252,12 @@ static void server_receivemsg(void* thisptr, void* channel, void* _data, size_t 
        NamedObject obj;
        void* a;
        void(*b)(void*,NamedObject*);
-       a = C([&](NamedObject* obj){
-	 found = obj;
-	 if(obj) {
-	   obj = *obj;
+       a = C([&](NamedObject* nobj){
+	 found = nobj;
+	 if(nobj) {
+	   obj = *nobj;
 	 }
-      });
+      },b);
        GGDNS_RunQuery(name,a,b);
        if(found) {
 	 std::vector<unsigned char> blob;
@@ -267,7 +271,7 @@ static void server_receivemsg(void* thisptr, void* channel, void* _data, size_t 
        }else {
 	 unsigned char response[4+1];
 	 memcpy(response,&callback_channel,4);
-	 response+4 = 0;
+	 response[4] = 0;
 	 Platform_Channel_Transmit(channel,response,4+1);
        }
      }
@@ -283,7 +287,7 @@ static void server_receivemsg(void* thisptr, void* channel, void* _data, size_t 
        bool s;
        a = C([&](bool success){
 	  s = success;
-      });
+      },b);
        GGDNS_MakeObject(name,&obj,a,b);
        unsigned char response[4+1];
        memcpy(response,&callback_channel,4);

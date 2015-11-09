@@ -104,10 +104,10 @@ static void NamedObject_Deserialize(BStream& str, NamedObject& out) {
   uint32_t len;
   str.Read(len);
   out.bloblen = len;
-  out.blob = str.Increment(len);
+  out.blob = (unsigned char*)str.Increment(len);
   str.Read(len);
   out.siglen = len;
-  out.signature = str.Increment(len);
+  out.signature = (unsigned char*)str.Increment(len);
   
 }
 
@@ -266,7 +266,7 @@ namespace GGClient {
       std::vector<unsigned char> request;
       request.resize(4+1+strlen(name)+1);
       memcpy(request.data(),&chen,4);
-      request.data[4] = 9;
+      request.data()[4] = 9;
       memcpy(request.data()+4+1,name,strlen(name)+1);
       NamedObject_Serialize(in,request);
       Platform_Channel_Transmit(router.channel,request.data(),request.size());
@@ -277,7 +277,7 @@ namespace GGClient {
 	str.Read(retval);
       }
       wh->Unfetch();
-      router.Unbind(wh);
+      router.Unbind(chen);
       return retval;
     }
     uint32_t RunServer(uint32_t portno,void* thisptr, void(*callback)(void*,unsigned char*,const void*,size_t)) {
